@@ -11,8 +11,91 @@
   let lastSelectSound = 0;
   let lastDragSound = 0;
 
-  const hour = new Date().getHours();
-  root.classList.add(hour < 5 ? 'ambient-late' : hour < 8 ? 'ambient-dawn' : hour > 20 ? 'ambient-night' : 'ambient-day');
+  // — Live clock —
+  const clockEl = document.getElementById('site-clock');
+  const wxEl = document.getElementById('wx-readout');
+  const pad = (n) => String(n).padStart(2, '0');
+  function tick() {
+    if (!clockEl) return;
+    const d = new Date();
+    clockEl.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+  tick();
+  setInterval(tick, 1000);
+
+  // — Ambient: time-of-day bucket + weather layer —
+  function timeBucket() {
+    const h = new Date().getHours();
+    return h < 5 ? 'ambient-late' : h < 8 ? 'ambient-dawn' : h > 20 ? 'ambient-night' : 'ambient-day';
+  }
+  function applyTime() {
+    root.classList.remove('ambient-late', 'ambient-dawn', 'ambient-day', 'ambient-night');
+    root.classList.add(timeBucket());
+  }
+  applyTime();
+  setInterval(applyTime, 60000);
+
+  // WMO weather_code → small sky set
+  function codeToSky(c) {
+    if (c === 0) return 'clear';
+    if (c <= 3) return 'cloud';
+    if (c === 45 || c === 48) return 'fog';
+    if ((c >= 51 && c <= 67) || (c >= 80 && c <= 82)) return 'rain';
+    if ((c >= 71 && c <= 77) || c === 85 || c === 86) return 'snow';
+    if (c >= 95) return 'storm';
+    return 'cloud';
+  }
+  const SKY_TEMP = { clear: 'soft', cloud: 'dry', fog: 'dry', rain: 'cold', snow: 'cold', storm: 'late' };
+  function applyWeather(wx) {
+    if (!wx || !wx.sky) return;
+    root.dataset.sky = wx.sky;
+    root.dataset.isDay = String(wx.isDay);
+    if (wxEl) {
+      wxEl.textContent = wx.sky + ' · ' + Math.round(wx.tempF) + '°';
+      wxEl.dataset.temp = SKY_TEMP[wx.sky] || 'dry';
+    }
+  }
+
+  const WX_KEY = 'wx';
+  const WX_TTL = 30 * 60 * 1000;
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem(WX_KEY) || 'null'); } catch {}
+  if (cached && cached.sky) applyWeather(cached); // flicker-free repeat visit
+
+  async function fetchWeather(lat, lon) {
+    try {
+      const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+        '&current=temperature_2m,weather_code,is_day&temperature_unit=fahrenheit';
+      const r = await fetch(url);
+      if (!r.ok) return;
+      const j = await r.json();
+      const cur = j.current || {};
+      const wx = { sky: codeToSky(cur.weather_code), tempF: cur.temperature_2m, isDay: cur.is_day === 1, ts: Date.now(), lat, lon };
+      localStorage.setItem(WX_KEY, JSON.stringify(wx));
+      applyWeather(wx);
+    } catch {}
+  }
+
+  // Refresh only if no fresh cache. Geolocation prompts once; denial → time-only ambient.
+  const fresh = cached && cached.ts && (Date.now() - cached.ts) < WX_TTL;
+  if (!fresh && navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => fetchWeather(pos.coords.latitude.toFixed(3), pos.coords.longitude.toFixed(3)),
+      () => {}, // denied/error → leave time-only ambient, no re-prompt
+      { timeout: 8000, maximumAge: 30 * 60 * 1000 }
+    );
+  }
+
+  // — Reading progress bar (post pages only) —
+  const readBar = document.getElementById('read-bar');
+  const article = document.querySelector('.post');
+  function updateReadBar() {
+    if (!readBar || !article) return;
+    const max = document.documentElement.scrollHeight - innerHeight;
+    const pct = max > 0 ? Math.min(1, scrollY / max) : 0;
+    readBar.style.width = (pct * 100).toFixed(1) + '%';
+  }
+  if (article) updateReadBar();
 
   const applyArchive = (on) => {
     document.body.classList.toggle('archive-mode', on);
@@ -102,6 +185,7 @@
     cursor?.classList.toggle('scroll-down', y > lastY);
     cursor?.classList.toggle('scroll-up', y < lastY);
     lastY = y;
+    updateReadBar();
     const now = performance.now();
     if (now - lastScrollSound > 95) { lastScrollSound = now; play('scroll'); }
     clearTimeout(scrollTimer);

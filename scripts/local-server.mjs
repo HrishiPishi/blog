@@ -274,6 +274,7 @@ function renderMarkdown(md) {
 
 function inline(s) {
   return esc(s)
+    .replace(/\{=\s*([\s\S]*?)\s*=\}/g, '<span class="sn"><span class="sn-ref"></span><span class="sn-note">$1</span></span>')
     .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" loading="lazy">')
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
     .replace(/\$([^$\n]+)\$/g, (_, tex) => renderMath(tex, false))
@@ -286,7 +287,7 @@ function layout(title, body, { wide = false } = {}) {
   const s = site();
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${esc(title ? `${title} — ${s.title}` : s.title)}</title><link rel="stylesheet" href="/assets/style.css"></head>
-  <body><div class="shell ${wide ? 'wide' : ''}"><header class="site-head"><a href="/" class="site-title">${esc(s.title)}</a>
+  <body><div class="read-bar" id="read-bar" aria-hidden="true"></div><div class="shell ${wide ? 'wide' : ''}"><header class="site-head"><div class="head-left"><a href="/" class="site-title">${esc(s.title)}</a><span class="clock-block label"><time id="site-clock" aria-label="local time"></time><span id="wx-readout" class="wx"></span></span></div>
   <nav class="label nav"><a href="/">index</a><a href="/about">about</a>${s.instagram ? `<a href="https://instagram.com/${esc(s.instagram)}">ig</a>` : ''}${s.spotify ? `<a href="${esc(s.spotify)}" target="_blank" rel="noopener">spotify</a>` : ''}<a class="accent" href="/admin">edit</a></nav></header>
   <main>${body}</main><footer class="label site-foot"><span>${esc(s.author)} · ${new Date().getFullYear()}</span><span><a href="#" id="archive-toggle">archive</a> · <a class="accent" href="/admin">edit</a></span></footer></div>${cursorMarkup()}<script src="/assets/site.js"></script></body></html>`;
 }
@@ -336,7 +337,23 @@ function postPage(slug) {
   const p = readPost(slug);
   if (!p || p.front.draft) return notFound();
   const hero = p.front.layoutType === 'gallery' && p.front.thumbnail ? `<figure class="img gallery-hero"><div class="calib-bar"><span class="calib-grey"></span><span class="calib-cmyk"></span></div><div class="img-frame"><span class="reg-mark reg-tl"></span><span class="reg-mark reg-tr"></span><span class="reg-mark reg-bl"></span><span class="reg-mark reg-br"></span><img src="${esc(p.front.thumbnail)}" alt="${esc(p.front.title)}"></div></figure>` : '';
-  return layout(p.front.title, `<article class="post post-${esc(p.front.layoutType)}"><header class="post-header"><div class="label post-meta"><time>${stamp(p.front.date)}</time>${p.front.category.map((c) => `<span>${esc(c)}</span>`).join('')}${p.front.tags.map((t) => `<span>#${esc(t)}</span>`).join('')}<span class="push">${esc(p.front.layoutType)}</span></div><h1 class="post-title">${esc(p.front.title)}</h1>${tempStrip(temperatureTags(p))}</header>${hero}<div class="prose post-body">${renderMarkdown(p.body)}</div><nav class="label post-nav"><a href="/">← index</a></nav></article>`, { wide: p.front.layoutType === 'gallery' });
+  const words = (p.body.match(/\S+/g) || []).length;
+  const readMin = Math.max(1, Math.round(words / 220));
+  const related = relatedPosts(p.front, slug);
+  const relatedHtml = related.length ? `<aside class="related label"><div class="related-head">from the same plate</div><div class="related-list">${related.map((r) => `<a href="/posts/${r.slug}"><span class="related-title">${esc(r.front.title)}</span><span class="related-cat">${esc(r.front.category[0] || 'note')} · ${stamp(r.front.date)}</span></a>`).join('')}</div></aside>` : '';
+  return layout(p.front.title, `<article class="post post-${esc(p.front.layoutType)}"><header class="post-header"><div class="label post-meta"><time>${stamp(p.front.date)}</time>${p.front.category.map((c) => `<span>${esc(c)}</span>`).join('')}${p.front.tags.map((t) => `<span>#${esc(t)}</span>`).join('')}<span>${readMin} min</span><span class="push">${esc(p.front.layoutType)}</span></div><h1 class="post-title">${esc(p.front.title)}</h1>${tempStrip(temperatureTags(p))}</header>${hero}<div class="prose post-body">${renderMarkdown(p.body)}</div>${relatedHtml}<nav class="label post-nav"><a href="/">← index</a></nav></article>`, { wide: p.front.layoutType === 'gallery' });
+}
+
+function relatedPosts(front, slug, limit = 3) {
+  const keys = new Set([...front.category, ...front.tags].map((x) => x.toLowerCase()));
+  if (keys.size === 0) return [];
+  return listPosts()
+    .filter((p) => p.slug !== slug)
+    .map((p) => ({ p, score: [...p.front.category, ...p.front.tags].filter((t) => keys.has(t.toLowerCase())).length }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score || new Date(b.p.front.date) - new Date(a.p.front.date))
+    .slice(0, limit)
+    .map((x) => x.p);
 }
 
 function admin() {
@@ -393,7 +410,14 @@ function css() {
     .replace(/^@import[^;]+;\n/gm, '')
     .replace(/@theme\s*\{([\s\S]*?)\}/, '');
   const katexCss = readFileSync(resolve(ROOT, 'node_modules/katex/dist/katex.min.css'), 'utf8').replace(/url\(fonts\//g, 'url(/assets/katex-fonts/');
-  return `${katexCss}\n:root{--font-serif:Georgia,'Times New Roman',serif;--font-mono:ui-monospace,SFMono-Regular,Menlo,monospace;--color-paper:#f7f6f2;--color-ink:#16140f;--color-faint:#6b675e;--color-rule:#d8d4c8;--color-accent:#1d4ed8;--container-measure:40rem}html,body,a,button{cursor:none}button,input,textarea,select{cursor:text}.shell{max-width:var(--container-measure);min-height:100vh;margin:0 auto;padding:2.5rem 1.5rem 5rem;display:flex;flex-direction:column}.shell.wide{max-width:64rem}.site-head,.site-foot{display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid var(--color-rule);padding-bottom:1rem;margin-bottom:3rem}.site-foot{border-top:1px solid var(--color-rule);border-bottom:0;margin:6rem 0 0;padding:1rem 0 0}.site-title{font-family:var(--font-serif);font-size:1.125rem;text-decoration:none}.nav{display:flex;gap:1.25rem}.accent{color:var(--color-accent)}.home-head{margin-bottom:2rem}.home-head h1{font-size:3rem;line-height:1.04}.home-meta,.post-meta{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap}.post-meta .push{margin-left:auto}.post-nav{border-top:1px solid var(--color-rule);padding-top:1rem;margin-top:4rem}.reg-dot{display:inline-block;width:.7em;height:.7em;border:1px solid currentColor;border-radius:999px}.ml-1{margin-left:.25rem}.text-\\(--color-ink\\){color:var(--color-ink)}html.ambient-night{--color-paper:#f1f2ef;--color-ink:#111412;--color-faint:#5c625d;--color-rule:#c9cec8}html.ambient-late{--color-paper:#f3f4f0;--color-ink:#101316;--color-faint:#565d63;--color-rule:#c7ccd0}html.ambient-dawn{--color-paper:#f8f5ef;--color-ink:#17130f;--color-faint:#6f6559;--color-rule:#ddd5c8}.temp-strip{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem}.temp-strip span{border:1px solid var(--color-rule);padding:.08rem .38rem;background:color-mix(in srgb,var(--color-paper) 78%,#fff)}[data-temp=cold]{color:#315a72}[data-temp=dry]{color:#6b675e}[data-temp=noisy]{color:#8a2f1d}[data-temp=soft]{color:#6d6155}[data-temp=late]{color:#1d4ed8}.archive-mode .board{display:block}.archive-mode .tile{border:0!important;border-bottom:1px solid var(--color-rule)!important;min-height:auto!important;padding:.55rem 0!important;background:transparent!important;transform:none!important}.archive-mode .tile-frame,.archive-mode .tile-tags,.archive-mode .temp-strip{display:none!important}.archive-mode .tile-meta{margin:0}.archive-mode .tile-title,.archive-mode .tile-title-lg{font-family:var(--font-mono);font-size:.82rem;line-height:1.4;margin:0}.cursor-ghost{position:fixed;width:20px;height:20px;z-index:9998;pointer-events:none;transform:translate(-50%,-50%);opacity:.28;color:var(--color-ink);animation:ghost-fade .45s ease-out forwards}.cursor-ghost:before,.cursor-ghost:after{content:"";position:absolute;background:currentColor}.cursor-ghost:before{left:9px;top:0;width:1px;height:20px}.cursor-ghost:after{left:0;top:9px;width:20px;height:1px}@keyframes ghost-fade{to{opacity:0;transform:translate(-50%,-50%) scale(.45)}}.cursor-cross{position:fixed;left:0;top:0;width:24px;height:24px;z-index:9999;pointer-events:none;transform:translate(-50%,-50%);mix-blend-mode:multiply;color:var(--color-ink)}.c-line{position:absolute;background:currentColor;transition:opacity .12s ease,background .08s ease}.c-top,.c-bottom{left:11px;width:1px;height:9px}.c-top{top:0}.c-bottom{bottom:0}.c-left,.c-right{top:11px;height:1px;width:9px}.c-left{left:0}.c-right{right:0}.cursor-cross.is-down{color:#b11226}.cursor-cross.scroll-down .c-top{opacity:0}.cursor-cross.scroll-up .c-bottom{opacity:0}@media(pointer:coarse){html,body,a,button{cursor:auto}.cursor-cross{display:none}}\n${base}`;
+  return `${katexCss}\n:root{--font-serif:Georgia,'Times New Roman',serif;--font-mono:ui-monospace,SFMono-Regular,Menlo,monospace;--color-paper:#f7f6f2;--color-ink:#16140f;--color-faint:#6b675e;--color-rule:#d8d4c8;--color-accent:#1d4ed8;--container-measure:40rem}html,body,a,button{cursor:none}button,input,textarea,select{cursor:text}.shell{max-width:var(--container-measure);min-height:100vh;margin:0 auto;padding:2.5rem 1.5rem 5rem;display:flex;flex-direction:column}.shell.wide{max-width:64rem}.site-head,.site-foot{display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid var(--color-rule);padding-bottom:1rem;margin-bottom:3rem}.site-foot{border-top:1px solid var(--color-rule);border-bottom:0;margin:6rem 0 0;padding:1rem 0 0}.site-title{font-family:var(--font-serif);font-size:1.125rem;text-decoration:none}.nav{display:flex;gap:1.25rem}.accent{color:var(--color-accent)}.home-head{margin-bottom:2rem}.home-head h1{font-size:3rem;line-height:1.04}.home-meta,.post-meta{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap}.post-meta .push{margin-left:auto}.post-nav{border-top:1px solid var(--color-rule);padding-top:1rem;margin-top:4rem}.reg-dot{display:inline-block;width:.7em;height:.7em;border:1px solid currentColor;border-radius:999px}.ml-1{margin-left:.25rem}.text-\\(--color-ink\\){color:var(--color-ink)}html.ambient-night{--color-paper:#f1f2ef;--color-ink:#111412;--color-faint:#5c625d;--color-rule:#c9cec8}html.ambient-late{--color-paper:#f3f4f0;--color-ink:#101316;--color-faint:#565d63;--color-rule:#c7ccd0}html.ambient-dawn{--color-paper:#f8f5ef;--color-ink:#17130f;--color-faint:#6f6559;--color-rule:#ddd5c8}.temp-strip{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem}.temp-strip span{border:1px solid var(--color-rule);padding:.08rem .38rem;background:color-mix(in srgb,var(--color-paper) 78%,#fff)}[data-temp=cold]{color:#315a72}[data-temp=dry]{color:#6b675e}[data-temp=noisy]{color:#8a2f1d}[data-temp=soft]{color:#6d6155}[data-temp=late]{color:#1d4ed8}.archive-mode .board{display:block}.archive-mode .tile{border:0!important;border-bottom:1px solid var(--color-rule)!important;min-height:auto!important;padding:.55rem 0!important;background:transparent!important;transform:none!important}.archive-mode .tile-frame,.archive-mode .tile-tags,.archive-mode .temp-strip{display:none!important}.archive-mode .tile-meta{margin:0}.archive-mode .tile-title,.archive-mode .tile-title-lg{font-family:var(--font-mono);font-size:.82rem;line-height:1.4;margin:0}.cursor-ghost{position:fixed;width:20px;height:20px;z-index:9998;pointer-events:none;transform:translate(-50%,-50%);opacity:.28;color:var(--color-ink);animation:ghost-fade .45s ease-out forwards}.cursor-ghost:before,.cursor-ghost:after{content:"";position:absolute;background:currentColor}.cursor-ghost:before{left:9px;top:0;width:1px;height:20px}.cursor-ghost:after{left:0;top:9px;width:20px;height:1px}@keyframes ghost-fade{to{opacity:0;transform:translate(-50%,-50%) scale(.45)}}.cursor-cross{position:fixed;left:0;top:0;width:24px;height:24px;z-index:9999;pointer-events:none;transform:translate(-50%,-50%);mix-blend-mode:multiply;color:var(--color-ink)}.c-line{position:absolute;background:currentColor;transition:opacity .12s ease,background .08s ease}.c-top,.c-bottom{left:11px;width:1px;height:9px}.c-top{top:0}.c-bottom{bottom:0}.c-left,.c-right{top:11px;height:1px;width:9px}.c-left{left:0}.c-right{right:0}.cursor-cross.is-down{color:#b11226}.cursor-cross.scroll-down .c-top{opacity:0}.cursor-cross.scroll-up .c-bottom{opacity:0}@media(pointer:coarse){html,body,a,button{cursor:auto}.cursor-cross{display:none}}
+.head-left{display:flex;align-items:baseline;gap:.9rem;flex-wrap:wrap}.clock-block{display:flex;align-items:baseline;gap:.5rem;color:var(--color-faint);font-size:.78rem}#site-clock{font-variant-numeric:tabular-nums;letter-spacing:.04em}.wx{text-transform:lowercase}
+html{--tint:transparent}body::after{content:"";position:fixed;inset:0;pointer-events:none;background:var(--tint);mix-blend-mode:multiply;z-index:1}body{transition:background-color .8s ease,color .8s ease}
+html[data-sky=clear]{--color-paper:#f8f5ee;--tint:rgba(255,205,120,.05)}html[data-sky=clear].ambient-dawn,html[data-sky=clear].ambient-late{--tint:rgba(255,176,92,.09)}html[data-sky=cloud]{--color-paper:#f3f3f1;--color-rule:#d2d2cd;--tint:rgba(120,124,130,.05)}html[data-sky=fog]{--color-paper:#f0f0ee;--color-ink:#23262a;--color-rule:#d0d2d0;--tint:rgba(150,153,158,.07)}html[data-sky=rain]{--color-paper:#eef1f3;--color-rule:#ccd2d7;--tint:rgba(70,110,150,.08)}html[data-sky=snow]{--color-paper:#f2f5f7;--color-rule:#d4dade;--tint:rgba(150,170,190,.06)}html[data-sky=storm]{--color-paper:#e9edf0;--color-ink:#0f1316;--color-rule:#c4ccd2;--tint:rgba(50,80,120,.11)}html[data-sky=rain].ambient-night,html[data-sky=storm].ambient-night{--color-paper:#e7ebee}
+.read-bar{position:fixed;top:0;left:0;height:2px;width:0;background:var(--color-accent);z-index:9997;pointer-events:none;transition:width .12s linear}
+.related{border-top:1px solid var(--color-rule);margin-top:4rem;padding-top:1rem}.related-head{color:var(--color-faint);margin-bottom:.6rem}.related-list{display:flex;flex-direction:column;gap:.45rem}.related-list a{display:flex;justify-content:space-between;gap:1rem;text-decoration:none;border-bottom:1px solid transparent;padding-bottom:.15rem}.related-list a:hover{border-bottom-color:var(--color-rule)}.related-cat{color:var(--color-faint);white-space:nowrap}
+.post-body{counter-reset:sn}.sn{counter-increment:sn}.sn-ref::before{content:counter(sn);font-family:var(--font-mono);font-size:.62em;vertical-align:super;color:var(--color-accent);margin:0 .12em}.sn-note{font-family:var(--font-mono);font-size:.74rem;line-height:1.5;color:var(--color-faint)}.sn-note::before{content:counter(sn);font-size:.85em;vertical-align:super;color:var(--color-accent);margin-right:.4em}@media(min-width:66rem){.sn-note{float:right;clear:right;width:10rem;margin:.15rem -12rem .7rem 0;text-align:left}}@media(max-width:66rem){.sn-note{display:block;margin:.5rem 0;padding-left:.85rem;border-left:2px solid var(--color-rule)}}
+@media(prefers-reduced-motion:reduce){body,.read-bar{transition:none}}\n${base}`;
 }
 
 function siteJs() {
@@ -410,8 +434,91 @@ function siteJs() {
   let lastSelectSound = 0;
   let lastDragSound = 0;
 
-  const hour = new Date().getHours();
-  root.classList.add(hour < 5 ? 'ambient-late' : hour < 8 ? 'ambient-dawn' : hour > 20 ? 'ambient-night' : 'ambient-day');
+  // — Live clock —
+  const clockEl = document.getElementById('site-clock');
+  const wxEl = document.getElementById('wx-readout');
+  const pad = (n) => String(n).padStart(2, '0');
+  function tick() {
+    if (!clockEl) return;
+    const d = new Date();
+    clockEl.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+  tick();
+  setInterval(tick, 1000);
+
+  // — Ambient: time-of-day bucket + weather layer —
+  function timeBucket() {
+    const h = new Date().getHours();
+    return h < 5 ? 'ambient-late' : h < 8 ? 'ambient-dawn' : h > 20 ? 'ambient-night' : 'ambient-day';
+  }
+  function applyTime() {
+    root.classList.remove('ambient-late', 'ambient-dawn', 'ambient-day', 'ambient-night');
+    root.classList.add(timeBucket());
+  }
+  applyTime();
+  setInterval(applyTime, 60000);
+
+  // WMO weather_code → small sky set
+  function codeToSky(c) {
+    if (c === 0) return 'clear';
+    if (c <= 3) return 'cloud';
+    if (c === 45 || c === 48) return 'fog';
+    if ((c >= 51 && c <= 67) || (c >= 80 && c <= 82)) return 'rain';
+    if ((c >= 71 && c <= 77) || c === 85 || c === 86) return 'snow';
+    if (c >= 95) return 'storm';
+    return 'cloud';
+  }
+  const SKY_TEMP = { clear: 'soft', cloud: 'dry', fog: 'dry', rain: 'cold', snow: 'cold', storm: 'late' };
+  function applyWeather(wx) {
+    if (!wx || !wx.sky) return;
+    root.dataset.sky = wx.sky;
+    root.dataset.isDay = String(wx.isDay);
+    if (wxEl) {
+      wxEl.textContent = wx.sky + ' · ' + Math.round(wx.tempF) + '°';
+      wxEl.dataset.temp = SKY_TEMP[wx.sky] || 'dry';
+    }
+  }
+
+  const WX_KEY = 'wx';
+  const WX_TTL = 30 * 60 * 1000;
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem(WX_KEY) || 'null'); } catch {}
+  if (cached && cached.sky) applyWeather(cached); // flicker-free repeat visit
+
+  async function fetchWeather(lat, lon) {
+    try {
+      const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+        '&current=temperature_2m,weather_code,is_day&temperature_unit=fahrenheit';
+      const r = await fetch(url);
+      if (!r.ok) return;
+      const j = await r.json();
+      const cur = j.current || {};
+      const wx = { sky: codeToSky(cur.weather_code), tempF: cur.temperature_2m, isDay: cur.is_day === 1, ts: Date.now(), lat, lon };
+      localStorage.setItem(WX_KEY, JSON.stringify(wx));
+      applyWeather(wx);
+    } catch {}
+  }
+
+  // Refresh only if no fresh cache. Geolocation prompts once; denial → time-only ambient.
+  const fresh = cached && cached.ts && (Date.now() - cached.ts) < WX_TTL;
+  if (!fresh && navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => fetchWeather(pos.coords.latitude.toFixed(3), pos.coords.longitude.toFixed(3)),
+      () => {}, // denied/error → leave time-only ambient, no re-prompt
+      { timeout: 8000, maximumAge: 30 * 60 * 1000 }
+    );
+  }
+
+  // — Reading progress bar (post pages only) —
+  const readBar = document.getElementById('read-bar');
+  const article = document.querySelector('.post');
+  function updateReadBar() {
+    if (!readBar || !article) return;
+    const max = document.documentElement.scrollHeight - innerHeight;
+    const pct = max > 0 ? Math.min(1, scrollY / max) : 0;
+    readBar.style.width = (pct * 100).toFixed(1) + '%';
+  }
+  if (article) updateReadBar();
 
   const applyArchive = (on) => {
     document.body.classList.toggle('archive-mode', on);
@@ -501,6 +608,7 @@ function siteJs() {
     cursor?.classList.toggle('scroll-down', y > lastY);
     cursor?.classList.toggle('scroll-up', y < lastY);
     lastY = y;
+    updateReadBar();
     const now = performance.now();
     if (now - lastScrollSound > 95) { lastScrollSound = now; play('scroll'); }
     clearTimeout(scrollTimer);
