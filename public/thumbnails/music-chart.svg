@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="Album chart collage">
+  <rect width="600" height="600" fill="#f7f6f2"/>
+  <!-- calibration strip -->
+  <g>
+    <rect x="24" y="22" width="220" height="10" fill="url(#grey)"/>
+    <rect x="252" y="22" width="180" height="10" fill="url(#cmyk)"/>
+    <text x="448" y="31" font-family="monospace" font-size="11" fill="#6b675e">CHART/02</text>
+  </g>
+  <!-- 3x3 album grid -->
+  <g transform="translate(24,56)">
+    <g>
+      <rect width="170" height="170" fill="#1d4ed8"/>
+      <circle cx="85" cy="85" r="46" fill="none" stroke="#f7f6f2" stroke-width="6"/>
+    </g>
+    <g transform="translate(191,0)">
+      <rect width="170" height="170" fill="#16140f"/>
+      <rect x="30" y="30" width="110" height="110" fill="none" stroke="#ed1c24" stroke-width="5"/>
+    </g>
+    <g transform="translate(382,0)">
+      <rect width="170" height="170" fill="#ec008c"/>
+      <path d="M20 150 L85 30 L150 150 Z" fill="#fff200"/>
+    </g>
+    <g transform="translate(0,191)">
+      <rect width="170" height="170" fill="#00a651"/>
+      <line x1="0" y1="85" x2="170" y2="85" stroke="#16140f" stroke-width="7"/>
+      <line x1="85" y1="0" x2="85" y2="170" stroke="#16140f" stroke-width="7"/>
+    </g>
+    <g transform="translate(191,191)">
+      <rect width="170" height="170" fill="#fff200"/>
+      <circle cx="85" cy="85" r="60" fill="#16140f"/>
+      <circle cx="85" cy="85" r="10" fill="#fff200"/>
+    </g>
+    <g transform="translate(382,191)">
+      <rect width="170" height="170" fill="#4d4d4d"/>
+      <rect x="25" y="60" width="120" height="50" fill="#f7f6f2"/>
+    </g>
+    <g transform="translate(0,382)">
+      <rect width="170" height="170" fill="#ed1c24"/>
+      <circle cx="60" cy="60" r="30" fill="#16140f"/>
+      <circle cx="120" cy="120" r="30" fill="#fff200"/>
+    </g>
+    <g transform="translate(191,382)">
+      <rect width="170" height="170" fill="#00aeef"/>
+      <path d="M0 170 Q85 40 170 170 Z" fill="#f7f6f2"/>
+    </g>
+    <g transform="translate(382,382)">
+      <rect width="170" height="170" fill="#16140f"/>
+      <text x="85" y="100" font-family="serif" font-size="90" fill="#f7f6f2" text-anchor="middle">♪</text>
+    </g>
+  </g>
+  <defs>
+    <linearGradient id="grey" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#000"/><stop offset="0.5" stop-color="#808080"/><stop offset="1" stop-color="#fff"/>
+    </linearGradient>
+    <linearGradient id="cmyk" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#000"/><stop offset="0.2" stop-color="#00aeef"/><stop offset="0.4" stop-color="#ec008c"/>
+      <stop offset="0.6" stop-color="#fff200"/><stop offset="0.8" stop-color="#ed1c24"/><stop offset="1" stop-color="#2e3192"/>
+    </linearGradient>
+  </defs>
+</svg>

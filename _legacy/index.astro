@@ -1,0 +1,80 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { listPosts, getSettings, allTags } from '../lib/repo';
+
+export const prerender = false;
+
+const settings = getSettings();
+const posts = listPosts({ status: 'published' });
+const tags = allTags();
+
+function stamp(d: string | null): string {
+  if (!d) return '';
+  return new Date(d.replace(' ', 'T') + 'Z').toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: '2-digit',
+  });
+}
+---
+
+<BaseLayout>
+  <section class="mb-10">
+    <div class="label flex items-center justify-between">
+      <span>[ {settings.author_name} — archive ]</span>
+      <span class="tilt-r">{settings.instagram ? `@${settings.instagram}` : ''} <span class="reg-dot ml-1"></span></span>
+    </div>
+    <h1 class="mt-5 font-serif text-4xl leading-[1.04] sm:text-5xl">{settings.site_title}</h1>
+    <p class="mt-4 max-w-prose text-(--color-faint)">{settings.site_tagline}</p>
+  </section>
+
+  <div class="regmark mb-9"></div>
+
+  <ol class="border-t border-(--color-rule)">
+    {
+      posts.map((post, i) => (
+        <li class="border-b border-(--color-rule)">
+          <a href={`/posts/${post.slug}`} class="group block py-6 no-underline">
+            <div class="label flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span>({String(posts.length - i).padStart(2, '0')})</span>
+              <time>{stamp(post.published_at)}</time>
+              <span>· {post.reading_time} min</span>
+              {post.tags.map((t) => (
+                <span>#{t}</span>
+              ))}
+            </div>
+            <h2 class="mt-2 font-serif text-2xl leading-tight group-hover:underline">
+              {post.title}
+            </h2>
+            {post.abstract && <p class="mt-1.5 text-(--color-faint)">{post.abstract}</p>}
+          </a>
+        </li>
+      ))
+    }
+    {
+      posts.length === 0 && (
+        <li class="label py-8">
+          No entries published yet.
+          {Astro.locals.user && (
+            <a href="/admin" class="ml-2 text-(--color-accent) underline">
+              Write the first →
+            </a>
+          )}
+        </li>
+      )
+    }
+  </ol>
+
+  {
+    tags.length > 0 && (
+      <div class="mt-10 flex flex-wrap gap-x-4 gap-y-1">
+        <span class="label">index by tag —</span>
+        {tags.map((t) => (
+          <a href={`/tags/${t.tag}`} class="label hover:text-(--color-ink)">
+            #{t.tag} ({t.count})
+          </a>
+        ))}
+      </div>
+    )
+  }
+</BaseLayout>

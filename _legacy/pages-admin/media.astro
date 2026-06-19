@@ -1,0 +1,12 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import MediaLibrary from '../../components/editor/MediaLibrary';
+
+export const prerender = false;
+
+if (!Astro.locals.user) return Astro.redirect('/admin/login');
+---
+
+<AdminLayout title="Media">
+  <MediaLibrary client:only="react" />
+</AdminLayout>

@@ -1,0 +1,66 @@
+---
+// global.css imports the KaTeX stylesheet + fonts, so the math symbols are
+// always styled wherever this layout is used.
+import '../styles/global.css';
+import { site } from '../site';
+
+interface Props {
+  title?: string;
+  description?: string;
+  ogType?: string;
+  wide?: boolean;
+}
+
+const { title, description, ogType = 'website', wide = false } = Astro.props;
+const pageTitle = title ? `${title} — ${site.title}` : site.title;
+const desc = description || site.tagline;
+const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url.origin).toString();
+const isDev = import.meta.env.DEV;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={desc} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:site_name" content={site.title} />
+    <meta property="og:title" content={title || site.title} />
+    <meta property="og:description" content={desc} />
+    <meta property="og:type" content={ogType} />
+  </head>
+  <body>
+    <div class={`mx-auto flex min-h-screen flex-col px-6 py-10 sm:py-14 ${wide ? 'max-w-5xl' : 'max-w-(--container-measure)'}`}>
+      <header class="mb-12 flex items-baseline justify-between border-b border-(--color-rule) pb-4">
+        <a href="/" class="font-serif text-lg no-underline">{site.title}</a>
+        <nav class="label flex gap-5">
+          <a href="/" class="hover:text-(--color-ink)">index</a>
+          <a href="/about" class="hover:text-(--color-ink)">about</a>
+          {site.instagram && (
+            <a href={`https://instagram.com/${site.instagram}`} target="_blank" rel="noopener" class="hover:text-(--color-ink)">ig</a>
+          )}
+          {site.spotify && (
+            <a href={site.spotify} target="_blank" rel="noopener" class="hover:text-(--color-ink)">spotify</a>
+          )}
+          {isDev && <a href="/admin" class="text-(--color-accent) hover:underline">edit</a>}
+        </nav>
+      </header>
+
+      <main class="flex-1">
+        <slot />
+      </main>
+
+      <footer class="label mt-24 flex items-center justify-between border-t border-(--color-rule) pt-4">
+        <span>{site.author} · {new Date().getFullYear()}</span>
+        {isDev && <a href="/admin" class="text-(--color-accent)">edit</a>}
+      </footer>
+    </div>
+    <div class="cursor-cross" id="cursor-cross" aria-hidden="true">
+      <span class="c-line c-top"></span><span class="c-line c-bottom"></span><span class="c-line c-left"></span><span class="c-line c-right"></span>
+    </div>
+    <script src="/assets/site.js"></script>
+  </body>
+</html>

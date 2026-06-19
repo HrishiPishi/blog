@@ -1,0 +1,140 @@
+---
+import type { PostFront } from '../server/content-fs';
+
+interface Props {
+  slug: string;
+  front: PostFront;
+  body: string;
+  isNew: boolean;
+}
+const { slug, front, body, isNew } = Astro.props;
+---
+
+<form class="editor-form" id="editor" data-original-slug={isNew ? '' : slug} data-new={String(isNew)}>
+  <div class="field-row">
+    <label class="field">
+      <span class="label">Slug (filename)</span>
+      <input type="text" id="f-slug" value={slug} placeholder="my-post" />
+    </label>
+    <label class="field">
+      <span class="label">Date</span>
+      <input type="date" id="f-date" value={front.date} />
+    </label>
+  </div>
+
+  <label class="field">
+    <span class="label">Title</span>
+    <input type="text" id="f-title" value={front.title} placeholder="Title" />
+  </label>
+
+  <div class="field-row">
+    <label class="field">
+      <span class="label">Category (comma-separated)</span>
+      <input type="text" id="f-category" value={front.category.join(', ')} placeholder="math, physics" />
+    </label>
+    <label class="field">
+      <span class="label">Tags (comma-separated)</span>
+      <input type="text" id="f-tags" value={front.tags.join(', ')} placeholder="latex, quantum" />
+    </label>
+  </div>
+
+  <div class="field-row">
+    <label class="field">
+      <span class="label">Thumbnail path (optional)</span>
+      <input type="text" id="f-thumbnail" value={front.thumbnail ?? ''} placeholder="/thumbnails/foo.svg" />
+    </label>
+    <label class="field">
+      <span class="label">Layout type</span>
+      <select id="f-layout">
+        {['math', 'text', 'gallery', 'list'].map((t) => (
+          <option value={t} selected={front.layoutType === t}>{t}</option>
+        ))}
+      </select>
+    </label>
+  </div>
+
+  <label class="field field-check">
+    <input type="checkbox" id="f-draft" checked={front.draft} />
+    <span class="label">draft (hidden from the public board)</span>
+  </label>
+
+  <label class="field">
+    <span class="label">Body — raw Markdown + LaTeX ($inline$, $$block$$) + ```code``` blocks</span>
+    <textarea id="f-body" spellcheck="false">{body}</textarea>
+  </label>
+
+  <div class="editor-bar">
+    <button type="button" class="btn-primary" id="save-btn">save</button>
+    {!isNew && <button type="button" class="btn-ghost btn-danger" id="delete-btn">delete</button>}
+    <span class="save-status" id="status"></span>
+  </div>
+</form>
+
+<script>
+  const form = document.getElementById('editor') as HTMLFormElement;
+  const $ = (id: string) => document.getElementById(id) as HTMLInputElement;
+  const statusEl = document.getElementById('status')!;
+  const setStatus = (msg: string, cls = '') => {
+    statusEl.textContent = msg;
+    statusEl.className = 'save-status ' + cls;
+  };
+
+  function payload() {
+    return {
+      slug: $('f-slug').value.trim(),
+      originalSlug: form.dataset.originalSlug || undefined,
+      front: {
+        title: $('f-title').value,
+        date: $('f-date').value,
+        category: $('f-category').value,
+        tags: $('f-tags').value,
+        thumbnail: $('f-thumbnail').value.trim(),
+        layoutType: (document.getElementById('f-layout') as HTMLSelectElement).value,
+        draft: $('f-draft').checked,
+      },
+      body: ($('f-body') as unknown as HTMLTextAreaElement).value,
+    };
+  }
+
+  document.getElementById('save-btn')!.addEventListener('click', async () => {
+    setStatus('saving…', 'busy');
+    try {
+      const res = await fetch('/api/save', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload()),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      setStatus(`saved ✓  (backed up → ${data.backup})`, 'ok');
+      // If this was a new post or the slug changed, move to its edit URL.
+      const wasNew = form.dataset.new === 'true';
+      const newSlug = data.slug;
+      if (wasNew || (form.dataset.originalSlug && form.dataset.originalSlug !== newSlug)) {
+        window.location.href = `/admin/edit/${newSlug}`;
+      } else {
+        form.dataset.originalSlug = newSlug;
+      }
+    } catch (e) {
+      setStatus((e as Error).message, 'err');
+    }
+  });
+
+  const delBtn = document.getElementById('delete-btn');
+  delBtn?.addEventListener('click', async () => {
+    if (!confirm('Delete this post? (A full backup is taken first.)')) return;
+    setStatus('deleting…', 'busy');
+    try {
+      const res = await fetch('/api/delete', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ slug: $('f-slug').value.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+      window.location.href = '/admin';
+    } catch (e) {
+      setStatus((e as Error).message, 'err');
+    }
+  });
+</script>

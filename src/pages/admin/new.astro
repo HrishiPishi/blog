@@ -1,0 +1,25 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import PostEditor from '../../components/PostEditor.astro';
+import type { PostFront } from '../../server/content-fs';
+
+export const prerender = false;
+
+if (!import.meta.env.DEV) return Astro.redirect('/');
+
+const today = new Date().toISOString().slice(0, 10);
+const front: PostFront = {
+  title: '',
+  date: today,
+  category: [],
+  tags: [],
+  thumbnail: undefined,
+  layoutType: 'text',
+  draft: true,
+};
+const starter = '# Start writing\n\nInline math like $E = mc^2$ and block math:\n\n$$\n\\int_0^1 x^2\\,dx = \\tfrac13\n$$\n\nAnd a code block:\n\n```python\nprint("hello")\n```\n';
+---
+
+<AdminLayout title="New post">
+  <PostEditor slug="" front={front} body={starter} isNew={true} />
+</AdminLayout>

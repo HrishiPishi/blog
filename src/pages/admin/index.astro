@@ -1,0 +1,36 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { listPostFiles } from '../../server/content-fs';
+
+export const prerender = false;
+
+if (!import.meta.env.DEV) return Astro.redirect('/');
+const posts = listPostFiles();
+---
+
+<AdminLayout title="Edit Dashboard">
+  <div class="dash-actions">
+    <a href="/admin/new" class="btn-primary">+ new post</a>
+    <a href="/admin/settings" class="btn-ghost">site settings</a>
+    <span class="label">{posts.length} {posts.length === 1 ? 'post' : 'posts'}</span>
+  </div>
+
+  <ol class="dash-list">
+    {
+      posts.map((p) => (
+        <li>
+          <a href={`/admin/edit/${p.slug}`} class="dash-post">
+            <span class="dash-post-title">{p.front.title}</span>
+            <span class="label">
+              {p.front.date} · {p.front.layoutType}
+              {p.front.category.length > 0 && ' · ' + p.front.category.join(', ')}
+              {p.front.draft && ' · DRAFT'}
+            </span>
+          </a>
+          <a href={`/posts/${p.slug}`} class="label" target="_blank" rel="noopener">view ↗</a>
+        </li>
+      ))
+    }
+    {posts.length === 0 && <li class="label dim">no posts yet — create one.</li>}
+  </ol>
+</AdminLayout>

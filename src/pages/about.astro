@@ -1,0 +1,12 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { site } from '../site';
+
+const paragraphs = site.about.split(/\n{2,}/).filter(Boolean);
+---
+
+<BaseLayout title="about" description={site.about}>
+  <div class="prose">
+    {paragraphs.map((p) => <p>{p}</p>)}
+  </div>
+</BaseLayout>

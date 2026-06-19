@@ -1,0 +1,17 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import PostEditor from '../../../components/PostEditor.astro';
+import { readPost } from '../../../server/content-fs';
+
+export const prerender = false;
+
+if (!import.meta.env.DEV) return Astro.redirect('/');
+
+const slug = String(Astro.params.slug);
+const post = readPost(slug);
+if (!post) return Astro.redirect('/admin');
+---
+
+<AdminLayout title={`Edit · ${post.front.title}`}>
+  <PostEditor slug={post.slug} front={post.front} body={post.body} isNew={false} />
+</AdminLayout>

@@ -1,0 +1,49 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getPostBySlug } from '../../lib/repo';
+
+export const prerender = false;
+
+const { slug } = Astro.params;
+const post = getPostBySlug(String(slug));
+
+// Drafts are visible only to the logged-in author (preview).
+if (!post || (post.status !== 'published' && !Astro.locals.user)) {
+  return new Response('Not found', { status: 404 });
+}
+
+function stamp(d: string | null): string {
+  const v = d ?? post!.updated_at;
+  return new Date(v.replace(' ', 'T') + 'Z').toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: '2-digit',
+  });
+}
+---
+
+<BaseLayout title={post.title} description={post.abstract} ogType="article">
+  <article>
+    <header class="mb-10 border-b border-(--color-rule) pb-8">
+      <div class="label flex flex-wrap items-center gap-x-3 gap-y-1">
+        <time>{stamp(post.published_at)}</time>
+        <span>· {post.reading_time} min read</span>
+        {post.status === 'draft' && <span class="text-(--color-accent)">· draft preview</span>}
+        {post.tags.map((t) => <span>#{t}</span>)}
+      </div>
+      <h1 class="mt-3 font-serif text-3xl leading-[1.1] sm:text-4xl">{post.title}</h1>
+      {post.abstract && <p class="mt-4 text-lg italic text-(--color-faint)">{post.abstract}</p>}
+    </header>
+
+    <div class="prose" set:html={post.content_html} />
+
+    <nav class="label mt-20 flex justify-between border-t border-(--color-rule) pt-4">
+      <a href="/" class="hover:text-(--color-ink)">← index</a>
+      {Astro.locals.user && (
+        <a href={`/admin/edit/${post.id}`} class="text-(--color-accent) hover:underline">
+          edit in studio →
+        </a>
+      )}
+    </nav>
+  </article>
+</BaseLayout>

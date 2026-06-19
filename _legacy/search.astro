@@ -1,0 +1,43 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { listPosts } from '../lib/repo';
+
+export const prerender = false;
+const q = (Astro.url.searchParams.get('q') || '').trim().toLowerCase();
+const all = listPosts({ status: 'published' });
+const results = q
+  ? all.filter((p) => {
+      const hay = (p.title + ' ' + p.abstract + ' ' + p.tags.join(' ') + ' ' + p.content_html.replace(/<[^>]+>/g, ' ')).toLowerCase();
+      return hay.includes(q);
+    })
+  : [];
+---
+
+<BaseLayout title="Search">
+  <h1 class="mb-6 font-serif text-3xl">Search</h1>
+  <form method="get" class="mb-8 flex gap-2 border-b border-(--color-ink) pb-2">
+    <input
+      type="search"
+      name="q"
+      value={q}
+      placeholder="query…"
+      autofocus
+      class="w-full bg-transparent font-mono text-sm outline-none placeholder:text-(--color-faint)"
+    />
+    <button type="submit" class="label hover:text-(--color-ink)">↵</button>
+  </form>
+
+  {q && <p class="label mb-6">{results.length} {results.length === 1 ? 'result' : 'results'} for “{q}”</p>}
+
+  <ol>
+    {results.map((post) => (
+      <li class="border-b border-(--color-rule) py-4">
+        <a href={`/posts/${post.slug}`} class="group block no-underline">
+          <h2 class="font-serif text-xl group-hover:underline">{post.title}</h2>
+          {post.abstract && <p class="mt-1 text-sm text-(--color-faint)">{post.abstract}</p>}
+        </a>
+      </li>
+    ))}
+  </ol>
+  <a href="/" class="label mt-10 inline-block hover:text-(--color-ink)">← index</a>
+</BaseLayout>

@@ -1,0 +1,32 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+}
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>{title} — Edit</title>
+  </head>
+  <body>
+    <div class="admin-shell">
+      <header class="admin-head">
+        <h1 class="font-serif">{title}</h1>
+        <nav class="label flex gap-4">
+          <a href="/admin">dashboard</a>
+          <a href="/" class="text-(--color-accent)">↗ view site</a>
+        </nav>
+      </header>
+      <p class="label admin-devnote">local edit mode · changes write to <code>src/content/</code> · every save backs up to <code>/backups/</code></p>
+      <slot />
+    </div>
+  </body>
+</html>

@@ -1,0 +1,64 @@
+---
+import '../styles/global.css';
+import { getSettings } from '../lib/repo';
+
+interface Props {
+  title?: string;
+  description?: string;
+  ogType?: string;
+}
+
+const settings = getSettings();
+const siteTitle = settings.site_title || 'Hrishi Mehta';
+const { title, description, ogType = 'website' } = Astro.props;
+const pageTitle = title ? `${title} — ${siteTitle}` : siteTitle;
+const desc = description || settings.site_tagline || '';
+const user = Astro.locals.user;
+const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url.origin).toString();
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>{pageTitle}</title>
+    {desc && <meta name="description" content={desc} />}
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" type="application/rss+xml" title={siteTitle} href="/rss.xml" />
+    <meta property="og:site_name" content={siteTitle} />
+    <meta property="og:title" content={title || siteTitle} />
+    {desc && <meta property="og:description" content={desc} />}
+    <meta property="og:type" content={ogType} />
+    <meta name="twitter:card" content="summary" />
+  </head>
+  <body>
+    <div class="mx-auto flex min-h-screen max-w-(--container-measure) flex-col px-6 py-12 sm:py-16">
+      <header class="mb-14 flex items-baseline justify-between border-b border-(--color-rule) pb-4">
+        <a href="/" class="font-serif text-lg no-underline">{siteTitle}</a>
+        <nav class="label flex gap-5">
+          <a href="/" class="hover:text-(--color-ink)">index</a>
+          <a href="/about" class="hover:text-(--color-ink)">about</a>
+          {settings.instagram && (
+            <a
+              href={`https://instagram.com/${settings.instagram}`}
+              target="_blank"
+              rel="noopener"
+              class="hover:text-(--color-ink)">ig</a>
+          )}
+          {user && <a href="/admin" class="text-(--color-accent) hover:underline">studio</a>}
+        </nav>
+      </header>
+
+      <main class="flex-1">
+        <slot />
+      </main>
+
+      <footer class="label mt-24 flex items-center justify-between border-t border-(--color-rule) pt-4">
+        <span>&copy; {new Date().getFullYear()} {settings.author_name || siteTitle}</span>
+        <span>{settings.footer_note}</span>
+      </footer>
+    </div>
+  </body>
+</html>

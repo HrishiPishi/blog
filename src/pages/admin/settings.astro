@@ -1,0 +1,75 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { readSiteConfig } from '../../server/content-fs';
+
+export const prerender = false;
+
+if (!import.meta.env.DEV) return Astro.redirect('/');
+const cfg = readSiteConfig();
+---
+
+<AdminLayout title="settings">
+  <form class="editor-form" id="settings-form">
+    <label class="field">
+      <span class="label">title</span>
+      <input type="text" id="s-title" value={cfg.title} />
+    </label>
+    <label class="field">
+      <span class="label">tagline</span>
+      <input type="text" id="s-tagline" value={cfg.tagline} />
+    </label>
+    <div class="field-row">
+      <label class="field">
+        <span class="label">author</span>
+        <input type="text" id="s-author" value={cfg.author} />
+      </label>
+      <label class="field">
+        <span class="label">instagram</span>
+        <input type="text" id="s-instagram" value={cfg.instagram} />
+      </label>
+    </div>
+    <label class="field">
+      <span class="label">spotify url</span>
+      <input type="text" id="s-spotify" value={cfg.spotify} />
+    </label>
+    <label class="field">
+      <span class="label">about</span>
+      <textarea id="s-about" style="min-height:6rem">{cfg.about}</textarea>
+    </label>
+    <div class="editor-bar">
+      <button type="button" class="btn-primary" id="save-settings">save settings</button>
+      <span class="save-status" id="settings-status"></span>
+    </div>
+  </form>
+</AdminLayout>
+
+<script>
+  const $ = (id: string) => document.getElementById(id) as HTMLInputElement;
+  const statusEl = document.getElementById('settings-status')!;
+
+  document.getElementById('save-settings')!.addEventListener('click', async () => {
+    statusEl.textContent = 'saving…';
+    statusEl.className = 'save-status busy';
+    try {
+      const res = await fetch('/api/save-settings', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          title: $('s-title').value,
+          tagline: $('s-tagline').value,
+          author: $('s-author').value,
+          instagram: $('s-instagram').value,
+          spotify: $('s-spotify').value,
+          about: (document.getElementById('s-about') as unknown as HTMLTextAreaElement).value,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'save failed');
+      statusEl.textContent = `saved ✓  (backed up → ${data.backup})`;
+      statusEl.className = 'save-status ok';
+    } catch (e) {
+      statusEl.textContent = (e as Error).message;
+      statusEl.className = 'save-status err';
+    }
+  });
+</script>

@@ -1,0 +1,14 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import Settings from '../../components/editor/Settings';
+import { getSettings } from '../../lib/repo';
+
+export const prerender = false;
+
+if (!Astro.locals.user) return Astro.redirect('/admin/login');
+const settings = getSettings();
+---
+
+<AdminLayout title="Settings">
+  <Settings initial={settings} client:only="react" />
+</AdminLayout>

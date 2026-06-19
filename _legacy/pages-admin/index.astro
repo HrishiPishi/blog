@@ -1,0 +1,23 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import Dashboard from '../../components/editor/Dashboard';
+import { listPosts } from '../../lib/repo';
+
+export const prerender = false;
+
+if (!Astro.locals.user) return Astro.redirect('/admin/login');
+
+const summaries = listPosts().map((p) => ({
+  id: p.id,
+  title: p.title,
+  slug: p.slug,
+  status: p.status,
+  updated_at: p.updated_at,
+  reading_time: p.reading_time,
+  tags: p.tags,
+}));
+---
+
+<AdminLayout title="Studio">
+  <Dashboard initial={summaries} client:only="react" />
+</AdminLayout>

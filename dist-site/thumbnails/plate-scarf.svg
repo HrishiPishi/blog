@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" role="img" aria-label="THE LOUD SCARF">
+  <rect width="400" height="480" fill="#e3a86a"/>
+  <path d="M80 120 Q200 80 320 120 L320 200 Q200 160 80 200 Z" fill="#ed6a2c"/><rect x="120" y="220" width="50" height="180" fill="#ed6a2c"/><rect x="230" y="220" width="50" height="180" fill="#ed6a2c"/>
+  <text x="200" y="456" font-family="monospace" font-size="16" fill="#16140f" text-anchor="middle">THE LOUD SCARF</text>
+</svg>

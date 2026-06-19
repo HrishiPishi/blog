@@ -1,0 +1,52 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { stamp } from '../../site';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('posts', ({ data }) => !data.draft);
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const { title, date, category, tags, thumbnail, layoutType } = post.data;
+const wide = layoutType === 'gallery';
+---
+
+<BaseLayout title={title} description={category.join(', ')} ogType="article" wide={wide}>
+  <article class={`post post-${layoutType}`}>
+    <header class="post-header">
+      <div class="label flex flex-wrap items-center gap-x-3 gap-y-1">
+        <time>{stamp(date)}</time>
+        {category.map((c) => <span class="text-(--color-ink)">{c}</span>)}
+        {tags.map((t) => <span>#{t}</span>)}
+        <span class="ml-auto">{layoutType}</span>
+      </div>
+      <h1 class="post-title">{title}</h1>
+    </header>
+
+    {
+      layoutType === 'gallery' && thumbnail && (
+        <figure class="img gallery-hero">
+          <div class="calib-bar" aria-hidden="true"><span class="calib-grey" /><span class="calib-cmyk" /></div>
+          <div class="img-frame">
+            <span class="reg-mark reg-tl" />
+            <span class="reg-mark reg-tr" />
+            <span class="reg-mark reg-bl" />
+            <span class="reg-mark reg-br" />
+            <img src={thumbnail} alt={title} />
+          </div>
+        </figure>
+      )
+    }
+
+    <div class="prose post-body">
+      <Content />
+    </div>
+
+    <nav class="label mt-16 border-t border-(--color-rule) pt-4">
+      <a href="/" class="hover:text-(--color-ink)">← index</a>
+    </nav>
+  </article>
+</BaseLayout>

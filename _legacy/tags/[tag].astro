@@ -1,0 +1,34 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { listPosts } from '../../lib/repo';
+
+export const prerender = false;
+const { tag } = Astro.params;
+const posts = listPosts({ status: 'published' }).filter((p) => p.tags.includes(String(tag)));
+
+function stamp(d: string | null): string {
+  if (!d) return '';
+  return new Date(d.replace(' ', 'T') + 'Z').toLocaleDateString('en-US', {
+    year: 'numeric', month: 'long', day: '2-digit',
+  });
+}
+---
+
+<BaseLayout title={`#${tag}`}>
+  <h1 class="mb-2 font-serif text-3xl">#{tag}</h1>
+  <p class="label mb-8">{posts.length} {posts.length === 1 ? 'entry' : 'entries'}</p>
+  <ol class="border-t border-(--color-rule)">
+    {posts.map((post, i) => (
+      <li class="border-b border-(--color-rule)">
+        <a href={`/posts/${post.slug}`} class="group block py-5 no-underline">
+          <div class="label">
+            <span>({String(posts.length - i).padStart(2, '0')})</span>
+            <time class="ml-3">{stamp(post.published_at)}</time>
+          </div>
+          <h2 class="mt-1.5 font-serif text-xl group-hover:underline">{post.title}</h2>
+        </a>
+      </li>
+    ))}
+  </ol>
+  <a href="/" class="label mt-10 inline-block hover:text-(--color-ink)">← index</a>
+</BaseLayout>

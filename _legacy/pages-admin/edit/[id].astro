@@ -1,0 +1,34 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import Editor from '../../../components/editor/Editor';
+import { getPostById } from '../../../lib/repo';
+
+export const prerender = false;
+
+if (!Astro.locals.user) return Astro.redirect('/admin/login');
+
+const post = getPostById(Number(Astro.params.id));
+if (!post) return Astro.redirect('/admin');
+
+let doc: unknown = {};
+try {
+  doc = JSON.parse(post.content_json);
+} catch {
+  doc = {};
+}
+
+const initial = {
+  id: post.id,
+  title: post.title,
+  abstract: post.abstract,
+  tags: post.tags,
+  slug: post.slug,
+  status: post.status,
+  cover_image: post.cover_image,
+  doc,
+};
+---
+
+<AdminLayout title="Editor">
+  <Editor post={initial} client:only="react" />
+</AdminLayout>

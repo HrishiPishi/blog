@@ -1,0 +1,14 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import LoginForm from '../../components/editor/LoginForm';
+import { userCount } from '../../lib/auth';
+
+export const prerender = false;
+
+if (Astro.locals.user) return Astro.redirect('/admin');
+const needsSetup = userCount() === 0;
+---
+
+<AdminLayout title="Studio">
+  <LoginForm needsSetup={needsSetup} client:only="react" />
+</AdminLayout>

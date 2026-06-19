@@ -1,0 +1,56 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { site, stamp } from '../site';
+
+const posts = (await getCollection('posts', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+---
+
+<BaseLayout wide>
+  <section class="mb-8">
+    <div class="label flex items-center justify-between">
+      <span>[ {site.author} — index ]</span>
+      <span class="tilt-r">{site.instagram ? `@${site.instagram}` : ''} <span class="reg-dot ml-1"></span></span>
+    </div>
+    <h1 class="mt-4 font-serif text-4xl leading-[1.04] sm:text-5xl">{site.title}</h1>
+    <p class="mt-3 max-w-prose text-(--color-faint)">{site.tagline}</p>
+  </section>
+
+  <div class="regmark mb-8"></div>
+
+  <div class="board">
+    {
+      posts.map((post, i) => {
+        const idx = String(posts.length - i).padStart(2, '0');
+        const cat = post.data.category[0] ?? 'note';
+        const cls = post.data.thumbnail ? 'tile tile-image' : `tile tile-text tile-${post.data.layoutType}`;
+        return (
+          <a href={`/posts/${post.id}`} class={cls}>
+            {post.data.thumbnail ? (
+              <>
+                <div class="tile-frame">
+                  <span class="reg-mark reg-tl" />
+                  <span class="reg-mark reg-br" />
+                  <img src={post.data.thumbnail} alt={post.data.title} loading="lazy" />
+                  <span class="scan-id">{cat}</span>
+                </div>
+                <div class="tile-meta">
+                  <span class="label">({idx}) {stamp(post.data.date)}</span>
+                  <span class="tile-title">{post.data.title}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div class="label tile-cat">({idx}) · {cat} · {stamp(post.data.date)}</div>
+                <h2 class="tile-title-lg">{post.data.title}</h2>
+                <div class="tile-tags label">{post.data.tags.map((t) => <span>#{t}</span>)}</div>
+              </>
+            )}
+          </a>
+        );
+      })
+    }
+  </div>
+</BaseLayout>
