@@ -1,6 +1,7 @@
 // @ts-check
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import rehypeBrutal from './src/lib/rehype-brutal.mjs';
 
 // Static, file-based Markdown blog. The public site prerenders to fast static
 // HTML; the local /admin dashboard + /api routes are dev-only (prerender:false,
@@ -16,7 +17,9 @@ export default {
   markdown: {
     // LaTeX: inline $…$ and block $$…$$ → KaTeX at build time.
     remarkPlugins: [remarkMath],
-    rehypePlugins: [rehypeKatex],
+    // rehypeKatex first (math → spans), then rehypeBrutal frames/contact-sheets
+    // the post images. rehypeBrutal skips .katex/.math subtrees regardless.
+    rehypePlugins: [rehypeKatex, rehypeBrutal],
     // Code blocks: Astro's built-in Shiki highlighter.
     shikiConfig: {
       theme: 'github-light',

@@ -267,9 +267,39 @@ function renderMarkdown(md) {
     }
     const para = [line];
     while (i + 1 < lines.length && lines[i + 1].trim() && !/^(#{1,4})\s+|^\d+\.\s+|^[-*]\s+|^@@BLOCK\d+@@$/.test(lines[i + 1].trim())) para.push(lines[++i]);
+    // Image-only paragraph → framed plate (1) or numbered contact sheet (>=2),
+    // instead of a plain <p> full of bare <img>.
+    const imgLines = para.map((l) => l.trim()).filter(Boolean);
+    if (imgLines.length && imgLines.every((l) => /^!\[[^\]]*\]\([^)]+\)$/.test(l))) {
+      out.push(renderImageBlock(imgLines));
+      continue;
+    }
     out.push(`<p>${inline(para.join(' '))}</p>`);
   }
   return out.join('\n');
+}
+
+function fileSlug(src) {
+  const base = String(src || '').split('/').pop() || String(src || '');
+  return base.replace(/\.[a-z0-9]+$/i, '') || 'untitled';
+}
+
+function renderImageBlock(imgLines) {
+  const imgs = imgLines.map((l) => {
+    const m = l.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    return { alt: m ? m[1] : '', src: m ? m[2] : '' };
+  });
+  if (imgs.length === 1) {
+    const { alt, src } = imgs[0];
+    const meta = alt ? `${fileSlug(src)} · ${alt}` : fileSlug(src);
+    return `<figure class="img fig-brutal"><div class="img-frame"><span class="reg-mark reg-tl"></span><span class="reg-mark reg-tr"></span><span class="reg-mark reg-bl"></span><span class="reg-mark reg-br"></span><img class="img-duo" src="${esc(src)}" alt="${esc(alt)}" loading="lazy"></div><figcaption class="fig-meta">${esc(meta)}</figcaption></figure>`;
+  }
+  const cols = Math.min(imgs.length, 4);
+  const cells = imgs.map((im, i) => {
+    const idx = String(i + 1).padStart(2, '0');
+    return `<figure class="grid-cell"><span class="grid-index">(${idx})</span><div class="img-frame"><span class="reg-mark reg-tl"></span><span class="reg-mark reg-br"></span><img class="img-duo" src="${esc(im.src)}" alt="${esc(im.alt)}" loading="lazy"><span class="scan-id">${esc(fileSlug(im.src))}</span></div></figure>`;
+  }).join('');
+  return `<div class="image-grid" data-cols="${cols}"><div class="grid-title"><span>contact sheet</span><span>${imgs.length} plates</span></div><div class="grid-cells">${cells}</div></div>`;
 }
 
 function inline(s) {
@@ -300,16 +330,21 @@ function cursorMarkup() {
 
 function home() {
   const s = site();
+  let featuredDone = false;
   const tiles = listPosts().map((p, i, arr) => {
     const idx = String(arr.length - i).padStart(2, '0');
     const cat = p.front.category[0] || 'note';
     const temps = temperatureTags(p);
     if (p.front.thumbnail) {
-      return `<a href="/posts/${p.slug}" class="tile tile-image"><div class="tile-frame"><span class="reg-mark reg-tl"></span><span class="reg-mark reg-br"></span><img src="${esc(p.front.thumbnail)}" alt="${esc(p.front.title)}"><span class="scan-id">${esc(cat)}</span></div><div class="tile-meta"><span class="label">(${idx}) ${stamp(p.front.date)}</span><span class="tile-title">${esc(p.front.title)}</span>${tempStrip(temps)}</div></a>`;
+      const feat = featuredDone ? '' : ' tile-feature';
+      featuredDone = true;
+      return `<a href="/posts/${p.slug}" class="tile tile-image${feat}"><div class="tile-frame"><span class="reg-mark reg-tl"></span><span class="reg-mark reg-br"></span><img src="${esc(p.front.thumbnail)}" alt="${esc(p.front.title)}"><span class="scan-id">${esc(cat)}</span></div><div class="tile-meta"><span class="label">(${idx}) ${stamp(p.front.date)}</span><span class="tile-title">${esc(p.front.title)}</span>${tempStrip(temps)}</div></a>`;
     }
     return `<a href="/posts/${p.slug}" class="tile tile-text tile-${esc(p.front.layoutType)}"><div class="label tile-cat">(${idx}) · ${esc(cat)} · ${stamp(p.front.date)}</div><h2 class="tile-title-lg">${esc(p.front.title)}</h2>${tempStrip(temps)}<div class="tile-tags label">${p.front.tags.map((t) => `<span>#${esc(t)}</span>`).join('')}</div></a>`;
   }).join('');
-  return layout('', `<section class="home-head"><div class="label home-meta"><span>[ ${esc(s.author)} — index ]</span><span class="tilt-r">@${esc(s.instagram)} <span class="reg-dot"></span></span></div><h1>${esc(s.title)}</h1><p>${esc(s.tagline)}</p></section><div class="regmark"></div><div class="board">${tiles}</div>`, { wide: true });
+  const count = String(listPosts().length).padStart(2, '0');
+  const today = stamp(new Date().toISOString().slice(0, 10));
+  return layout('', `<section class="home-head"><div class="label home-meta"><span>[ ${esc(s.author)} — index ]</span><span class="tilt-r">@${esc(s.instagram)} <span class="reg-dot"></span></span></div><h1 class="masthead-title">${esc(s.title)}</h1><div class="issue-strip label"><span>no. ${count}</span><span class="tilt-l">issn 0000–0000</span><span>${today}</span></div><p>${esc(s.tagline)}</p></section><div class="regmark"></div><div class="board">${tiles}</div>`, { wide: true });
 }
 
 function temperatureTags(post) {
@@ -339,9 +374,12 @@ function postPage(slug) {
   const hero = p.front.layoutType === 'gallery' && p.front.thumbnail ? `<figure class="img gallery-hero"><div class="calib-bar"><span class="calib-grey"></span><span class="calib-cmyk"></span></div><div class="img-frame"><span class="reg-mark reg-tl"></span><span class="reg-mark reg-tr"></span><span class="reg-mark reg-bl"></span><span class="reg-mark reg-br"></span><img src="${esc(p.front.thumbnail)}" alt="${esc(p.front.title)}"></div></figure>` : '';
   const words = (p.body.match(/\S+/g) || []).length;
   const readMin = Math.max(1, Math.round(words / 220));
+  const ordered = listPosts();
+  const pos = ordered.findIndex((x) => x.slug === slug);
+  const num = pos >= 0 ? String(ordered.length - pos).padStart(2, '0') : '00';
   const related = relatedPosts(p.front, slug);
   const relatedHtml = related.length ? `<aside class="related label"><div class="related-head">from the same plate</div><div class="related-list">${related.map((r) => `<a href="/posts/${r.slug}"><span class="related-title">${esc(r.front.title)}</span><span class="related-cat">${esc(r.front.category[0] || 'note')} · ${stamp(r.front.date)}</span></a>`).join('')}</div></aside>` : '';
-  return layout(p.front.title, `<article class="post post-${esc(p.front.layoutType)}"><header class="post-header"><div class="label post-meta"><time>${stamp(p.front.date)}</time>${p.front.category.map((c) => `<span>${esc(c)}</span>`).join('')}${p.front.tags.map((t) => `<span>#${esc(t)}</span>`).join('')}<span>${readMin} min</span><span class="push">${esc(p.front.layoutType)}</span></div><h1 class="post-title">${esc(p.front.title)}</h1>${tempStrip(temperatureTags(p))}</header>${hero}<div class="prose post-body">${renderMarkdown(p.body)}</div>${relatedHtml}<nav class="label post-nav"><a href="/">← index</a></nav></article>`, { wide: p.front.layoutType === 'gallery' });
+  return layout(p.front.title, `<article class="post post-${esc(p.front.layoutType)}"><header class="post-header"><span class="post-index-num" aria-hidden="true">${num}</span><div class="label post-meta"><time>${stamp(p.front.date)}</time>${p.front.category.map((c) => `<span>${esc(c)}</span>`).join('')}${p.front.tags.map((t) => `<span>#${esc(t)}</span>`).join('')}<span>${readMin} min</span><span class="push">${esc(p.front.layoutType)}</span></div><h1 class="post-title">${esc(p.front.title)}</h1>${tempStrip(temperatureTags(p))}</header>${hero}<div class="prose post-body">${renderMarkdown(p.body)}</div>${relatedHtml}<nav class="label post-nav"><a href="/">← index</a></nav></article>`, { wide: p.front.layoutType === 'gallery' });
 }
 
 function relatedPosts(front, slug, limit = 3) {
@@ -410,7 +448,7 @@ function css() {
     .replace(/^@import[^;]+;\n/gm, '')
     .replace(/@theme\s*\{([\s\S]*?)\}/, '');
   const katexCss = readFileSync(resolve(ROOT, 'node_modules/katex/dist/katex.min.css'), 'utf8').replace(/url\(fonts\//g, 'url(/assets/katex-fonts/');
-  return `${katexCss}\n:root{--font-serif:Georgia,'Times New Roman',serif;--font-mono:ui-monospace,SFMono-Regular,Menlo,monospace;--color-paper:#f7f6f2;--color-ink:#16140f;--color-faint:#6b675e;--color-rule:#d8d4c8;--color-accent:#1d4ed8;--container-measure:40rem}html,body,a,button{cursor:none}button,input,textarea,select{cursor:text}.shell{max-width:var(--container-measure);min-height:100vh;margin:0 auto;padding:2.5rem 1.5rem 5rem;display:flex;flex-direction:column}.shell.wide{max-width:64rem}.site-head,.site-foot{display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid var(--color-rule);padding-bottom:1rem;margin-bottom:3rem}.site-foot{border-top:1px solid var(--color-rule);border-bottom:0;margin:6rem 0 0;padding:1rem 0 0}.site-title{font-family:var(--font-serif);font-size:1.125rem;text-decoration:none}.nav{display:flex;gap:1.25rem}.accent{color:var(--color-accent)}.home-head{margin-bottom:2rem}.home-head h1{font-size:3rem;line-height:1.04}.home-meta,.post-meta{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap}.post-meta .push{margin-left:auto}.post-nav{border-top:1px solid var(--color-rule);padding-top:1rem;margin-top:4rem}.reg-dot{display:inline-block;width:.7em;height:.7em;border:1px solid currentColor;border-radius:999px}.ml-1{margin-left:.25rem}.text-\\(--color-ink\\){color:var(--color-ink)}html.ambient-night{--color-paper:#f1f2ef;--color-ink:#111412;--color-faint:#5c625d;--color-rule:#c9cec8}html.ambient-late{--color-paper:#f3f4f0;--color-ink:#101316;--color-faint:#565d63;--color-rule:#c7ccd0}html.ambient-dawn{--color-paper:#f8f5ef;--color-ink:#17130f;--color-faint:#6f6559;--color-rule:#ddd5c8}.temp-strip{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem}.temp-strip span{border:1px solid var(--color-rule);padding:.08rem .38rem;background:color-mix(in srgb,var(--color-paper) 78%,#fff)}[data-temp=cold]{color:#315a72}[data-temp=dry]{color:#6b675e}[data-temp=noisy]{color:#8a2f1d}[data-temp=soft]{color:#6d6155}[data-temp=late]{color:#1d4ed8}.archive-mode .board{display:block}.archive-mode .tile{border:0!important;border-bottom:1px solid var(--color-rule)!important;min-height:auto!important;padding:.55rem 0!important;background:transparent!important;transform:none!important}.archive-mode .tile-frame,.archive-mode .tile-tags,.archive-mode .temp-strip{display:none!important}.archive-mode .tile-meta{margin:0}.archive-mode .tile-title,.archive-mode .tile-title-lg{font-family:var(--font-mono);font-size:.82rem;line-height:1.4;margin:0}.cursor-ghost{position:fixed;width:20px;height:20px;z-index:9998;pointer-events:none;transform:translate(-50%,-50%);opacity:.28;color:var(--color-ink);animation:ghost-fade .45s ease-out forwards}.cursor-ghost:before,.cursor-ghost:after{content:"";position:absolute;background:currentColor}.cursor-ghost:before{left:9px;top:0;width:1px;height:20px}.cursor-ghost:after{left:0;top:9px;width:20px;height:1px}@keyframes ghost-fade{to{opacity:0;transform:translate(-50%,-50%) scale(.45)}}.cursor-cross{position:fixed;left:0;top:0;width:24px;height:24px;z-index:9999;pointer-events:none;transform:translate(-50%,-50%);mix-blend-mode:multiply;color:var(--color-ink)}.c-line{position:absolute;background:currentColor;transition:opacity .12s ease,background .08s ease}.c-top,.c-bottom{left:11px;width:1px;height:9px}.c-top{top:0}.c-bottom{bottom:0}.c-left,.c-right{top:11px;height:1px;width:9px}.c-left{left:0}.c-right{right:0}.cursor-cross.is-down{color:#b11226}.cursor-cross.scroll-down .c-top{opacity:0}.cursor-cross.scroll-up .c-bottom{opacity:0}@media(pointer:coarse){html,body,a,button{cursor:auto}.cursor-cross{display:none}}
+  return `${katexCss}\n:root{--font-serif:Georgia,'Times New Roman',serif;--font-mono:ui-monospace,SFMono-Regular,Menlo,monospace;--color-paper:#f7f6f2;--color-ink:#16140f;--color-faint:#6b675e;--color-rule:#d8d4c8;--color-accent:#1d4ed8;--container-measure:40rem;--font-display:Arial,'Helvetica Neue',Helvetica,sans-serif}html,body,a,button{cursor:none}button,input,textarea,select{cursor:text}.shell{max-width:var(--container-measure);min-height:100vh;margin:0 auto;padding:2.5rem 1.5rem 5rem;display:flex;flex-direction:column}.shell.wide{max-width:64rem}.site-head,.site-foot{display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid var(--color-rule);padding-bottom:1rem;margin-bottom:3rem}.site-foot{border-top:1px solid var(--color-rule);border-bottom:0;margin:6rem 0 0;padding:1rem 0 0}.site-title{font-family:var(--font-serif);font-size:1.125rem;text-decoration:none}.nav{display:flex;gap:1.25rem}.accent{color:var(--color-accent)}.home-head{margin-bottom:2rem}.home-head h1{font-family:var(--font-display);font-weight:800;letter-spacing:-.035em;line-height:.9;text-transform:uppercase;font-size:clamp(2.75rem,11vw,7rem)}.home-meta,.post-meta{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap}.post-meta .push{margin-left:auto}.post-nav{border-top:1px solid var(--color-rule);padding-top:1rem;margin-top:4rem}.reg-dot{display:inline-block;width:.7em;height:.7em;border:1px solid currentColor;border-radius:999px}.ml-1{margin-left:.25rem}.text-\\(--color-ink\\){color:var(--color-ink)}html.ambient-night{--color-paper:#f1f2ef;--color-ink:#111412;--color-faint:#5c625d;--color-rule:#c9cec8}html.ambient-late{--color-paper:#f3f4f0;--color-ink:#101316;--color-faint:#565d63;--color-rule:#c7ccd0}html.ambient-dawn{--color-paper:#f8f5ef;--color-ink:#17130f;--color-faint:#6f6559;--color-rule:#ddd5c8}.temp-strip{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem}.temp-strip span{border:1px solid var(--color-rule);padding:.08rem .38rem;background:color-mix(in srgb,var(--color-paper) 78%,#fff)}[data-temp=cold]{color:#315a72}[data-temp=dry]{color:#6b675e}[data-temp=noisy]{color:#8a2f1d}[data-temp=soft]{color:#6d6155}[data-temp=late]{color:#1d4ed8}.archive-mode .board{display:block}.archive-mode .tile{border:0!important;border-bottom:1px solid var(--color-rule)!important;min-height:auto!important;padding:.55rem 0!important;background:transparent!important;transform:none!important}.archive-mode .tile-frame,.archive-mode .tile-tags,.archive-mode .temp-strip{display:none!important}.archive-mode .tile-meta{margin:0}.archive-mode .tile-title,.archive-mode .tile-title-lg{font-family:var(--font-mono);font-size:.82rem;line-height:1.4;margin:0}.cursor-ghost{position:fixed;width:20px;height:20px;z-index:9998;pointer-events:none;transform:translate(-50%,-50%);opacity:.28;color:var(--color-ink);animation:ghost-fade .45s ease-out forwards}.cursor-ghost:before,.cursor-ghost:after{content:"";position:absolute;background:currentColor}.cursor-ghost:before{left:9px;top:0;width:1px;height:20px}.cursor-ghost:after{left:0;top:9px;width:20px;height:1px}@keyframes ghost-fade{to{opacity:0;transform:translate(-50%,-50%) scale(.45)}}.cursor-cross{position:fixed;left:0;top:0;width:24px;height:24px;z-index:9999;pointer-events:none;transform:translate(-50%,-50%);mix-blend-mode:multiply;color:var(--color-ink)}.c-line{position:absolute;background:currentColor;transition:opacity .12s ease,background .08s ease}.c-top,.c-bottom{left:11px;width:1px;height:9px}.c-top{top:0}.c-bottom{bottom:0}.c-left,.c-right{top:11px;height:1px;width:9px}.c-left{left:0}.c-right{right:0}.cursor-cross.is-down{color:#b11226}.cursor-cross.scroll-down .c-top{opacity:0}.cursor-cross.scroll-up .c-bottom{opacity:0}@media(pointer:coarse){html,body,a,button{cursor:auto}.cursor-cross{display:none}}
 .head-left{display:flex;align-items:baseline;gap:.9rem;flex-wrap:wrap}.clock-block{display:flex;align-items:baseline;gap:.5rem;color:var(--color-faint);font-size:.78rem}#site-clock{font-variant-numeric:tabular-nums;letter-spacing:.04em}.wx{text-transform:lowercase}
 html{--tint:transparent}body::after{content:"";position:fixed;inset:0;pointer-events:none;background:var(--tint);mix-blend-mode:multiply;z-index:1}body{transition:background-color .8s ease,color .8s ease}
 html[data-sky=clear]{--color-paper:#f8f5ee;--tint:rgba(255,205,120,.05)}html[data-sky=clear].ambient-dawn,html[data-sky=clear].ambient-late{--tint:rgba(255,176,92,.09)}html[data-sky=cloud]{--color-paper:#f3f3f1;--color-rule:#d2d2cd;--tint:rgba(120,124,130,.05)}html[data-sky=fog]{--color-paper:#f0f0ee;--color-ink:#23262a;--color-rule:#d0d2d0;--tint:rgba(150,153,158,.07)}html[data-sky=rain]{--color-paper:#eef1f3;--color-rule:#ccd2d7;--tint:rgba(70,110,150,.08)}html[data-sky=snow]{--color-paper:#f2f5f7;--color-rule:#d4dade;--tint:rgba(150,170,190,.06)}html[data-sky=storm]{--color-paper:#e9edf0;--color-ink:#0f1316;--color-rule:#c4ccd2;--tint:rgba(50,80,120,.11)}html[data-sky=rain].ambient-night,html[data-sky=storm].ambient-night{--color-paper:#e7ebee}

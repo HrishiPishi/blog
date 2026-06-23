@@ -8,6 +8,10 @@
 @theme {
   --font-serif: 'Newsreader Variable', Georgia, 'Times New Roman', serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+  /* Heavy grotesque for the oversized brutalist display type — crashes straight
+     into the serif/mono body with no intermediate weights. System Arial/
+     Helvetica so it needs no webfont loading (the runtime loads none). */
+  --font-display: Arial, 'Helvetica Neue', Helvetica, sans-serif;
 
   --color-paper: #f7f6f2;
   --color-ink: #16140f;
@@ -281,10 +285,12 @@ a {
 .prose .image-grid[data-cols='3'] .grid-cells { grid-template-columns: repeat(3, 1fr); }
 .prose .image-grid[data-cols='4'] .grid-cells { grid-template-columns: repeat(4, 1fr); }
 .prose .grid-cell { margin: 0; position: relative; }
-/* Subtle hand-placed tilt so the grid reads like taped contact prints. */
-.prose .grid-cell:nth-child(3n+1) { transform: rotate(-0.6deg); }
-.prose .grid-cell:nth-child(3n+2) { transform: rotate(0.5deg); }
-.prose .grid-cell:nth-child(3n+3) { transform: rotate(-0.25deg); }
+/* Hand-placed tilt so the grid reads like taped contact prints — pushed harder
+   for the brutalist pass (was ≤0.6°). */
+.prose .grid-cell:nth-child(4n+1) { transform: rotate(-2deg); }
+.prose .grid-cell:nth-child(4n+2) { transform: rotate(1.4deg); }
+.prose .grid-cell:nth-child(4n+3) { transform: rotate(-0.8deg); }
+.prose .grid-cell:nth-child(4n+4) { transform: rotate(2.3deg); }
 .prose .grid-cell img {
   width: 100%;
   aspect-ratio: 4 / 3;
@@ -359,8 +365,9 @@ a {
   object-fit: cover;
   display: block;
 }
-.tile-image:nth-child(3n+1) { transform: rotate(-0.6deg); }
-.tile-image:nth-child(3n+2) { transform: rotate(0.5deg); }
+.tile-image:nth-child(3n+1) { transform: rotate(-1.5deg); }
+.tile-image:nth-child(3n+2) { transform: rotate(1.2deg); }
+.tile-image:nth-child(3n+3) { transform: rotate(-0.5deg); }
 .tile-meta { margin-top: 0.6rem; display: flex; flex-direction: column; gap: 0.1rem; }
 .tile-title { font-family: var(--font-serif); font-size: 1.15rem; line-height: 1.2; }
 .tile:hover .tile-title, .tile:hover .tile-title-lg { text-decoration: underline; }
@@ -510,3 +517,197 @@ a {
 .save-status.ok { color: #2f6f4f; }
 .save-status.err { color: #8a2f1d; }
 .save-status.busy { color: var(--color-accent); }
+
+/* ====================================================================== */
+/* BRUTALIST TRANCHE 1                                                     */
+/* Hard frames, scanned/halftone images, oversized display type, masthead */
+/* + colophon. All hover states are INSTANT — no transitions anywhere.    */
+/* ====================================================================== */
+
+/* ---- Oversized display type --------------------------------------------- */
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 0.92;
+}
+
+/* Index masthead: massive sans crashing into the plain serif tagline below. */
+.masthead-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.9;
+  text-transform: uppercase;
+  font-size: clamp(2.75rem, 11vw, 7rem);
+  margin: 0;
+}
+
+/* Post titles: switch the serif title for the heavy grotesque, and float a
+   giant faint index numeral behind the header. */
+.post-header { position: relative; }
+.post-index-num {
+  position: absolute;
+  top: -0.35em;
+  right: -0.1rem;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(4rem, 16vw, 9rem);
+  line-height: 1;
+  color: var(--color-rule);
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
+/* Keep all header text above the giant index numeral (which is positioned, so
+   it would otherwise paint over the static meta row). */
+.post-header .label,
+.post-title {
+  position: relative;
+  z-index: 1;
+}
+.post-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+.post-text .post-title { font-size: clamp(2.2rem, 8vw, 3.6rem); line-height: 0.94; }
+
+/* ---- Image system ------------------------------------------------------- */
+
+/* Scanned / photocopied duotone — applied to every post image by the rehype
+   plugin. High-contrast grayscale reads as a cheap office scan. */
+.img-duo {
+  filter: grayscale(1) contrast(1.35) brightness(1.04);
+}
+
+/* Hard framing: thick ink border + an offset second rule via outline, so each
+   plate looks mounted, not floated. */
+.prose figure.fig-brutal { margin: 2.4em 0; }
+.prose figure.fig-brutal .img-frame {
+  border: 2.5px solid var(--color-ink);
+  outline: 1px solid var(--color-ink);
+  outline-offset: 4px;
+  background: #e9e6dd;
+}
+.prose figure.fig-brutal img { width: 100%; display: block; }
+
+/* Halftone dot-screen overlay for an extra-brutal print texture. Opt-in: add
+   `img-halftone` to a frame. */
+.img-frame.img-halftone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+  background-image: radial-gradient(var(--color-ink) 0.6px, transparent 0.7px);
+  background-size: 4px 4px;
+}
+
+/* Archival metadata caption — mono, left-aligned, uppercased filename slug. */
+.prose figure.fig-brutal .fig-meta {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+  text-align: left;
+  margin-top: 0.6em;
+  padding-left: 0.1em;
+  border-top: 1px solid var(--color-rule);
+  padding-top: 0.4em;
+}
+.prose figure.fig-brutal .fig-meta::before {
+  content: '⊕ ';
+  color: var(--color-faint);
+}
+
+/* Scrapbook fastener: a strip of "tape" across the top-left of a plate. */
+.taped::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 14%;
+  width: 64px;
+  height: 20px;
+  background: rgba(180, 174, 156, 0.45);
+  border-left: 1px dashed rgba(0, 0, 0, 0.18);
+  border-right: 1px dashed rgba(0, 0, 0, 0.18);
+  transform: rotate(-4deg);
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* Full-bleed plate that breaks the reading measure for stark framing. Pair with
+   a wide layout where there's room. */
+.prose .bleed {
+  width: min(92vw, 70rem);
+  margin-left: 50%;
+  transform: translateX(-50%);
+}
+
+/* ---- Contact sheet: harden the latent .image-grid ----------------------- */
+.prose .image-grid {
+  border: 2.5px solid var(--color-ink);
+  padding: 1.1rem 1.1rem 1.3rem;
+  background: #fbfaf7;
+}
+.prose .image-grid .grid-cells { gap: 1.3em 1.3em; }
+.prose .image-grid .grid-cell .img-frame {
+  border: 1.5px solid var(--color-ink);
+  background: #e9e6dd;
+}
+.prose .image-grid .grid-title {
+  display: flex;
+  justify-content: space-between;
+  text-transform: uppercase;
+  border-bottom: 1.5px solid var(--color-ink);
+  padding-bottom: 0.5em;
+}
+.prose .image-grid .grid-index {
+  font-weight: 600;
+  text-align: left;
+  color: var(--color-ink);
+}
+
+/* ---- Homepage: heavier tile framing + featured plate -------------------- */
+.tile-image .tile-frame {
+  border: 2px solid var(--color-ink);
+  outline: 1px solid var(--color-ink);
+  outline-offset: 3px;
+}
+/* Instant invert of the meta bar on hover — no fade. */
+.tile-image:hover .tile-meta {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+.tile-text:hover { border-color: var(--color-ink); border-width: 2px; }
+
+/* Feature the most recent image post as a 2×2 plate on wide boards. */
+@media (min-width: 900px) {
+  .tile-feature { grid-column: span 2; grid-row: span 2; }
+  .tile-feature .tile-title { font-size: 1.7rem; }
+}
+
+/* ---- Masthead issue strip + footer colophon ----------------------------- */
+.issue-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 2px solid var(--color-ink);
+  border-bottom: 2px solid var(--color-ink);
+  padding: 0.4rem 0;
+  margin-top: 0.9rem;
+}
+.colophon {
+  margin-top: 1.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+  line-height: 1.7;
+}

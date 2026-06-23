@@ -53,9 +53,16 @@ const isDev = import.meta.env.DEV;
         <slot />
       </main>
 
-      <footer class="label mt-24 flex items-center justify-between border-t border-(--color-rule) pt-4">
-        <span>{site.author} · {new Date().getFullYear()}</span>
-        {isDev && <a href="/admin" class="text-(--color-accent)">edit</a>}
+      <footer class="mt-24 border-t border-(--color-rule) pt-4">
+        <div class="calib-bar" aria-hidden="true"><span class="calib-grey"></span><span class="calib-cmyk"></span></div>
+        <div class="label flex items-center justify-between">
+          <span>{site.author} · {new Date().getFullYear()}</span>
+          {isDev && <a href="/admin" class="text-(--color-accent)">edit</a>}
+        </div>
+        <div class="colophon">
+          set in Inter · Newsreader · JetBrains Mono<br />
+          printed to static html — no trackers, no transitions
+        </div>
       </footer>
     </div>
     <div class="cursor-cross" id="cursor-cross" aria-hidden="true">

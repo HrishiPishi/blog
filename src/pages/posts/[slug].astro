@@ -12,11 +12,18 @@ const { post } = Astro.props;
 const { Content } = await render(post);
 const { title, date, category, tags, thumbnail, layoutType } = post.data;
 const wide = layoutType === 'gallery';
+
+// Stable archival index numeral (oldest = 01), shared with the homepage scheme.
+const all = (await getCollection('posts', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+const num = String(all.length - all.findIndex((p) => p.id === post.id)).padStart(2, '0');
 ---
 
 <BaseLayout title={title} description={category.join(', ')} ogType="article" wide={wide}>
   <article class={`post post-${layoutType}`}>
     <header class="post-header">
+      <span class="post-index-num" aria-hidden="true">{num}</span>
       <div class="label flex flex-wrap items-center gap-x-3 gap-y-1">
         <time>{stamp(date)}</time>
         {category.map((c) => <span class="text-(--color-ink)">{c}</span>)}
